@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { X, Trash2, Copy, Download, Check } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { X, Trash2, Copy, Download, Upload, Check, AlertCircle } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { validatePlan } from '../engine/validation';
 import { exportPlan } from '../storage/planStore';
+import type { SchedulePlan } from '../types';
 
 function formatTime(ts: number): string {
   const d = new Date(ts);
@@ -23,11 +24,14 @@ export default function PlanDrawer() {
     loadPlanById,
     deletePlanById,
     duplicatePlan,
+    importPlan,
   } = useAppStore();
 
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleExport = (plan: typeof currentPlan) => {
+  const handleExport = (plan: SchedulePlan) => {
     const json = exportPlan(plan);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -36,6 +40,33 @@ export default function PlanDrawer() {
     a.download = `${plan.name}-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleImportClick = () => {
+    setImportError(null);
+    fileInputRef.current?.click();
+  };
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const text = ev.target?.result;
+        if (typeof text !== 'string') throw new Error('无法读取文件');
+        const plan = JSON.parse(text) as SchedulePlan;
+        if (!plan.name || !Array.isArray(plan.marshalling)) {
+          throw new Error('JSON 格式不符合方案结构');
+        }
+        importPlan(plan);
+        setImportError(null);
+      } catch (err) {
+        setImportError(err instanceof Error ? err.message : '导入失败');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   return (
@@ -63,14 +94,47 @@ export default function PlanDrawer() {
           </button>
         </div>
 
-        <div className="h-[calc(100%-4rem)] overflow-y-auto scrollbar-thin p-4 space-y-3">
+        <div className="px-4 py-3 border-b border-coal-600/60 flex items-center gap-2">
+          <button className="metal-button flex-1" onClick={handleImportClick}>
+            <div className="flex items-center justify-center gap-2">
+              <Upload className="w-4 h-4" />
+              <span>导入 JSON</span>
+            </div>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,application/json"
+            className="hidden"
+            onChange={handleImportFile}
+          />
+        </div>
+
+        {importError && (
+          <div className="mx-4 mt-2 p-3 rounded bg-rust-500/20 border border-rust-500/40 flex items-start gap-2 animate-float-up">
+            <AlertCircle className="w-4 h-4 text-rust-400 flex-shrink-0 mt-0.5" />
+            <div className="font-mono text-xs text-rust-300">{importError}</div>
+            <button
+              className="ml-auto text-rust-400 hover:text-rust-300"
+              onClick={() => setImportError(null)}
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        <div className="h-[calc(100%-8rem)] overflow-y-auto scrollbar-thin p-4 space-y-3">
           {savedPlans.length === 0 && (
             <div className="parchment-panel p-8 text-center mt-8">
               <div className="font-mono text-xs text-coal-300 uppercase tracking-widest mb-3">
                 档案库空空如也
               </div>
               <div className="text-sm text-coal-400">
-                编组好列车后点击「保存方案」<br />将在此处留存你的调度杰作
+                编组好列车后点击「保存方案」
+                <br />
+                将在此处留存你的调度杰作
+                <br />
+                也可点击上方「导入 JSON」恢复备份
               </div>
             </div>
           )}

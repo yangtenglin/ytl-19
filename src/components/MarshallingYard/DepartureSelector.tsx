@@ -1,12 +1,7 @@
 import { useState } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { Clock, X, Zap, Coffee } from 'lucide-react';
-import type { DepartureTime, DraggableType, Carriage, Cargo } from '../../types';
-
-interface DropPayload {
-  type: DraggableType;
-  data: Carriage | Cargo | DepartureTime;
-}
+import type { DepartureTime } from '../../types';
 
 const urgencyConfig = {
   紧急: {
@@ -37,32 +32,6 @@ export default function DepartureSelector() {
   const [dragOver, setDragOver] = useState(false);
   const departure = currentPlan.departure;
 
-  const handleDragOver = (e: React.DragEvent) => {
-    try {
-      const raw = e.dataTransfer.getData('application/json');
-      if (raw) {
-        const p = JSON.parse(raw);
-        if (p.type === 'departure') {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'copy';
-        }
-      }
-    } catch {}
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    try {
-      const raw = e.dataTransfer.getData('application/json');
-      if (!raw) return;
-      const p = JSON.parse(raw);
-      if (p.type === 'departure') {
-        setDeparture(p.data as DepartureTime);
-      }
-    } catch {}
-  };
-
   return (
     <div className="p-4 border-b border-coal-600/60">
       <div className="flex items-center gap-4">
@@ -82,14 +51,28 @@ export default function DepartureSelector() {
               : 'border-coal-500/60 bg-coal-700/30 hover:border-coal-400/60'
           }`}
           onDragEnter={(e) => {
-            try {
-              const raw = e.dataTransfer.types.includes('application/json');
-              if (raw) setDragOver(true);
-            } catch {}
+            if (e.dataTransfer.types.includes('application/x-departure')) {
+              setDragOver(true);
+            }
           }}
           onDragLeave={() => setDragOver(false)}
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
+          onDragOver={(e) => {
+            if (e.dataTransfer.types.includes('application/x-departure')) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = 'copy';
+            }
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setDragOver(false);
+            const raw = e.dataTransfer.getData('application/x-departure');
+            if (!raw) return;
+            try {
+              const dep = JSON.parse(raw) as DepartureTime;
+              setDeparture(dep);
+            } catch {}
+          }}
         >
           {departure ? (
             <div className="flex items-center gap-4 px-5 w-full">

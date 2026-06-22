@@ -40,6 +40,7 @@ interface AppState {
   deletePlanById: (id: string) => void;
   resetCurrentPlan: () => void;
   duplicatePlan: (id: string) => void;
+  importPlan: (plan: SchedulePlan) => void;
 }
 
 const emptyPlan = (): SchedulePlan => ({
@@ -207,6 +208,23 @@ export const useAppStore = create<AppState>((set, get) => ({
         instanceId: generateInstanceId(),
         cargos: [...mc.cargos],
       })),
+    };
+    const saved = persistSavePlan(clone);
+    set({ savedPlans: saved });
+  },
+
+  importPlan: (plan) => {
+    const clone: SchedulePlan = {
+      ...plan,
+      id: generatePlanId(),
+      name: plan.name || '导入方案',
+      marshalling: (plan.marshalling || []).map((mc) => ({
+        ...mc,
+        instanceId: generateInstanceId(),
+        cargos: [...(mc.cargos || [])],
+      })),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     };
     const saved = persistSavePlan(clone);
     set({ savedPlans: saved });

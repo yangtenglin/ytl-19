@@ -2,44 +2,11 @@ import { useState } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import DepartureSelector from './DepartureSelector';
 import TrainTrack from './TrainTrack';
-import type { Carriage, Cargo, DepartureTime, DraggableType } from '../../types';
-
-interface DropPayload {
-  type: DraggableType;
-  data: Carriage | Cargo | DepartureTime;
-}
-
-function parsePayload(e: React.DragEvent): DropPayload | null {
-  try {
-    const raw = e.dataTransfer.getData('application/json');
-    return raw ? (JSON.parse(raw) as DropPayload) : null;
-  } catch {
-    return null;
-  }
-}
+import type { Carriage, DepartureTime } from '../../types';
 
 export default function MarshallingYard() {
-  const { currentPlan, addCarriage, setDeparture } = useAppStore();
+  const { currentPlan, addCarriage } = useAppStore();
   const [yardDragOver, setYardDragOver] = useState(false);
-
-  const handleDragOver = (e: React.DragEvent) => {
-    const p = parsePayload(e);
-    if (!p) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = p.type === 'carriage' ? 'copy' : 'move';
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setYardDragOver(false);
-    const p = parsePayload(e);
-    if (!p) return;
-    if (p.type === 'carriage') {
-      addCarriage(p.data as Carriage);
-    } else if (p.type === 'departure') {
-      setDeparture(p.data as DepartureTime);
-    }
-  };
 
   return (
     <section className="flex-1 h-full flex flex-col bg-gradient-to-b from-coal-700/30 to-coal-800/50 overflow-hidden">
@@ -50,7 +17,9 @@ export default function MarshallingYard() {
           yardDragOver ? 'bg-brass-500/5' : ''
         }`}
         onDragEnter={(e) => {
-          if (parsePayload(e)?.type === 'carriage') setYardDragOver(true);
+          if (e.dataTransfer.types.includes('application/x-carriage')) {
+            setYardDragOver(true);
+          }
         }}
         onDragLeave={(e) => {
           const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -60,8 +29,28 @@ export default function MarshallingYard() {
             setYardDragOver(false);
           }
         }}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
+        onDragOver={(e) => {
+          if (
+            e.dataTransfer.types.includes('application/x-carriage') ||
+            e.dataTransfer.types.includes('application/x-departure')
+          ) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+          }
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          setYardDragOver(false);
+          if (e.dataTransfer.types.includes('application/x-carriage')) {
+            const raw = e.dataTransfer.getData('application/x-carriage');
+            if (raw) {
+              try {
+                const carriage = JSON.parse(raw) as Carriage;
+                addCarriage(carriage);
+              } catch {}
+            }
+          }
+        }}
       >
         {currentPlan.marshalling.length === 0 ? (
           <EmptyYardHint dragHint={yardDragOver} />

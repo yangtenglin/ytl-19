@@ -21,10 +21,9 @@ export default function CargoCard({ cargo }: Props) {
   const handleDragStart = (e: React.DragEvent) => {
     setDragging(true);
     e.dataTransfer.effectAllowed = 'copy';
-    e.dataTransfer.setData(
-      'application/json',
-      JSON.stringify({ type: 'cargo', data: cargo }),
-    );
+    const payload = JSON.stringify(cargo);
+    e.dataTransfer.setData('application/x-cargo', payload);
+    e.dataTransfer.setData('text/plain', payload);
   };
 
   const isUrgent = cargo.deadline <= 4;

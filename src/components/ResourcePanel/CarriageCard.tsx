@@ -11,10 +11,9 @@ export default function CarriageCard({ carriage }: Props) {
   const handleDragStart = (e: React.DragEvent) => {
     setDragging(true);
     e.dataTransfer.effectAllowed = 'copy';
-    e.dataTransfer.setData(
-      'application/json',
-      JSON.stringify({ type: 'carriage', data: carriage }),
-    );
+    const payload = JSON.stringify(carriage);
+    e.dataTransfer.setData('application/x-carriage', payload);
+    e.dataTransfer.setData('text/plain', payload);
     const img = e.currentTarget;
     if (img) e.dataTransfer.setDragImage(img as HTMLElement, 60, 30);
   };

@@ -36,10 +36,9 @@ export default function TimeSlotCard({ departure, isActive }: Props) {
   const handleDragStart = (e: React.DragEvent) => {
     setDragging(true);
     e.dataTransfer.effectAllowed = 'copy';
-    e.dataTransfer.setData(
-      'application/json',
-      JSON.stringify({ type: 'departure', data: departure }),
-    );
+    const payload = JSON.stringify(departure);
+    e.dataTransfer.setData('application/x-departure', payload);
+    e.dataTransfer.setData('text/plain', payload);
   };
 
   return (

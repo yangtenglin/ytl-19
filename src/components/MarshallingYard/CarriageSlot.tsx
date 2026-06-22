@@ -1,13 +1,8 @@
 import { useState } from 'react';
 import { useAppStore } from '../../store/useAppStore';
-import { Trash2, AlertTriangle, X, GripVertical, MapPin } from 'lucide-react';
-import type { MarshalledCarriage, Cargo, Carriage, DraggableType } from '../../types';
+import { AlertTriangle, X, GripVertical, MapPin } from 'lucide-react';
+import type { MarshalledCarriage, Cargo } from '../../types';
 import { getCarriageUtilization } from '../../engine/validation';
-
-interface DropPayload {
-  type: DraggableType;
-  data: Carriage | Cargo;
-}
 
 interface Props {
   mc: MarshalledCarriage;
@@ -57,19 +52,6 @@ export default function CarriageSlot({ mc, index }: Props) {
     return arr.length > 0 ? arr[0][0] : null;
   })();
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setCargoDragOver(false);
-    try {
-      const raw = e.dataTransfer.getData('application/json');
-      if (!raw) return;
-      const p = JSON.parse(raw) as DropPayload;
-      if (p.type === 'cargo') {
-        addCargoToCarriage(mc.instanceId, p.data as Cargo);
-      }
-    } catch {}
-  };
-
   return (
     <div
       className={`relative group ${overload ? 'animate-shake' : ''}`}
@@ -107,15 +89,29 @@ export default function CarriageSlot({ mc, index }: Props) {
               ? 'drag-over'
               : 'bg-black/15 border border-black/20'
           }`}
-          onDragEnter={() => setCargoDragOver(true)}
+          onDragEnter={(e) => {
+            if (e.dataTransfer.types.includes('application/x-cargo')) {
+              setCargoDragOver(true);
+            }
+          }}
           onDragLeave={() => setCargoDragOver(false)}
           onDragOver={(e) => {
+            if (!e.dataTransfer.types.includes('application/x-cargo')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            e.dataTransfer.dropEffect = 'copy';
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setCargoDragOver(false);
+            const raw = e.dataTransfer.getData('application/x-cargo');
+            if (!raw) return;
             try {
-              const raw = e.dataTransfer.types.includes('application/json');
-              if (raw) e.preventDefault();
+              const cargo = JSON.parse(raw) as Cargo;
+              addCargoToCarriage(mc.instanceId, cargo);
             } catch {}
           }}
-          onDrop={handleDrop}
         >
           {mc.cargos.length === 0 ? (
             <div className="h-[80px] flex items-center justify-center font-mono text-[10px] text-coal-900/40 text-center leading-relaxed">
